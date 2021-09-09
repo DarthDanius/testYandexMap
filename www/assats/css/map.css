@@ -1,0 +1,56 @@
+
+/* main-title */
+.main-title {
+    background-color: aliceblue;
+}
+.main-title__cont {
+    padding: 20px 0;
+}
+.main-title__title {
+    text-align: center;
+}
+
+/* catalog */
+.catalog {
+    background-color: aliceblue;
+}
+.catalog__cont {
+    padding: 20px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 20px;
+}
+.catalog__map {
+    min-height: 600px;
+    background-color: beige;
+}
+.catalog__filter {
+
+}
+
+/* filter */
+.filter {
+}
+.filter__title {
+}
+.filter__commercial {
+}
+.filter__option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* map-search */
+.map-search {
+}
+.map-search__cont {
+}
+.map-search__search {
+}
+
+/* header */
+.header {
+    height: 100px;
+    background-color: chocolate;
+}
