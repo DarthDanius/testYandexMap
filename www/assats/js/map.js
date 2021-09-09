@@ -26,7 +26,7 @@ jQuery(()=>{
 
     ymaps.ready(function(e){
         const Map = mapInit(MapCont)
-        const SuggestView = searchInit(SearchField)
+        const SuggestView = searchInit(SearchField, Map)
         if (typeof Map !== "object" && typeof SuggestView !== "object") return false
 
         let coords = getRandomCoordinate(3, BOUNDS)
@@ -35,6 +35,44 @@ jQuery(()=>{
     });
 
 })
+
+function filterInit() {
+    filterSelect()
+}
+
+function mapInit(contElement) {
+    // Создание карты.
+    if ( typeof contElement !== "object" ) return false
+    console.log(typeof contElement)
+
+    const myMap = new ymaps.Map(contElement, {
+        behaviors: ['drag'],
+        bounds: BOUNDS,
+        zoom: 7
+    });
+
+    return myMap
+}
+
+function searchInit(inputElement, map) {
+    if ( typeof inputElement !== "object" ) return false
+    console.log(typeof inputElement)
+
+    var suggestView = new ymaps.SuggestView(inputElement, {
+        boundedBy: BOUNDS,
+    });
+    suggestView.events.add(['select'], (e)=>{
+        let item = e.get('item')
+        if ( !item ) return false
+        let address = item.value
+        console.log(address)
+        reverseGeocoding(address)
+        .then((coord)=>{
+            console.log(coord)
+            addPlacemarks(map, [coord])
+        })        
+    })
+}
 
 function addPlacemarks(map, coords) {
 
@@ -78,56 +116,17 @@ function addPlacemarks(map, coords) {
     map.geoObjects.add(myCluster);
 }
 
-function filterInit() {
-    filterSelect()
-}
-
-function mapInit(contElement) {
-    // Создание карты.
-    if ( typeof contElement !== "object" ) return false
-    console.log(typeof contElement)
-
-    const myMap = new ymaps.Map(contElement, {
-        behaviors: ['drag'],
-        bounds: BOUNDS,
-        zoom: 7
-    });
-
-    return myMap
-}
-
-function searchInit(inputElement) {
-    if ( typeof inputElement !== "object" ) return false
-    console.log(typeof inputElement)
-
-    var suggestView = new ymaps.SuggestView(inputElement, {
-        boundedBy: BOUNDS,
-    });
-    suggestView.events.add(['optionschange'], (e)=>{console.log('optionschange');console.log(e);})
-    suggestView.events.add(['select'], (e)=>{
-        console.log('select')
-        console.log(e.get('item'))
-        let item = e.get('item')
-        if ( !item ) return false
-        
-    })
-
-    console.log(suggestView)
-
-    return suggestView
-}
-
 function directGeocoding(coord) {
     
 }
 
 function reverseGeocoding(address) {
     //определяем координаты по адресу
-    ymaps.geocode(t, {results:1})
+    return ymaps.geocode(address, {results:1})
         .then((res) => {
             let MyGeoObj = res.geoObjects.get(0)
-            console.log( MyGeoObj.geometry.getCoordinates() )
             let coord = MyGeoObj.geometry.getCoordinates()
+            return coord
         })
 }
 
