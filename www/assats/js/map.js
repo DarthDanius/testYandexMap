@@ -1,5 +1,6 @@
 const CLASSNAME_HIDDEN = 'hidden'
-const BOUNDS = [ [55.142226, 36.803268], [56.021286, 37.967799] ]
+// const BOUNDS = [ [55.142226, 36.803268], [56.021286, 37.967799] ]
+const BOUNDS = [[55.27947461751806,36.839317121093764],[56.201357452667416,38.58888987500001]]
 const STORE = {
     user: null,
     circle: null,
@@ -77,14 +78,20 @@ document.addEventListener('DOMContentLoaded', ()=>{
 })
 
 function mapInit(contElement) {
+
+    // console.log(contElement.clientWidth)
+    // console.log(contElement.clientHeight)
     // Создание карты.
     if ( typeof contElement !== "object" ) return false
+
+    let {center, zoom} = ymaps.util.bounds.getCenterAndZoom( BOUNDS, [contElement.clientWidth, contElement.clientHeight] )
 
     const myMap = new ymaps.Map(contElement, {
         behaviors: ['drag', 'scrollZoom'],
         controls: [],
         bounds: BOUNDS,
-        zoom: 7
+        center,
+        zoom
     });
 
     myMap.events.add('click', function (e) {
