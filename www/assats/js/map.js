@@ -1,54 +1,97 @@
 const CLASSNAME_HIDDEN = 'hidden'
 const BOUNDS = [ [55.142226, 36.803268], [56.021286, 37.967799] ]
+const STORE = {
+    user: null,
+    circle: null,
+    coords: [],
+    objects: []
+}
 
 let MapCont            = null
-let FilterSelect       = null
 let SearchField        = null
-let SearchInterface    = null
-let SearchBtn          = null
+let SearchRadius       = null
 
-jQuery(()=>{
+let placemarkObject = {
+    properties: {
+        hintContent: 'hint',
+        balloonContent:
+            `
+            <a class="item-map" href="google.com">
+                <div class="item-map__img-cont">
+                    <img class="item-map__img" src="/assats/img/no-image.svg"
+                </div>
+                <p class="item-map__name">имя</p>
+                <p class="item-map__price">дена</p>
+            </a>
+            `,
+    },
+    options: {
+        visible: false
+    }
+}
+
+let placemarkUser = {
+    properties: {
+        hintContent: false,
+        balloonContent: false,
+    },
+    options: {
+        // Опции.
+        draggable: true,
+        // Необходимо указать данный тип макета.
+        iconLayout: 'default#image',
+        // Своё изображение иконки метки.
+        iconImageHref: '/assats/img/icon-user.svg',
+        // Размеры метки.
+        iconImageSize: [30, 30],
+        // Смещение левого верхнего угла иконки относительно
+        // её "ножки" (точки привязки).
+        iconImageOffset: [-15, -15]            
+    }
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
 
     // присваиваем переменным DOM-элементы
     MapCont            = document.querySelector('[data-element="map"]')
-    FilterSelect       = document.querySelector('[data-element="filter-select"]')
     SearchField        = document.querySelector('[data-element="search-field"]')
-    SearchInterface    = document.querySelector('[data-element="search-interface"]')
-    SearchBtn          = document.querySelector('[data-element="search-btn"]')
-    
-    // инициализируем фильтр
-    filterInit()
+    SearchRadius       = document.querySelector('[data-element="search-radius"]')
 
-    // присваиваем обработчики
-    FilterSelect.addEventListener('change', function(e) {
-        filterSelect()
-    })
+    // получаем список координат из базы
+    STORE.coords = getRandomCoordinate(50, BOUNDS)
 
     ymaps.ready(function(e){
         const Map = mapInit(MapCont)
         const SuggestView = searchInit(SearchField, Map)
         if (typeof Map !== "object" && typeof SuggestView !== "object") return false
 
-        let coords = getRandomCoordinate(3, BOUNDS)
-        
-        addPlacemarks(Map, coords)
+        STORE.objects = addPlacemarks(Map, STORE.coords, placemarkObject)
+
+        // присваиваем обработчики карты
+        SearchRadius.addEventListener('change', function(e) {
+            let radius = getRadius()        
+            setCircle(Map, null, radius)
+        })
     });
 
 })
 
-function filterInit() {
-    filterSelect()
-}
-
 function mapInit(contElement) {
     // Создание карты.
     if ( typeof contElement !== "object" ) return false
-    console.log(typeof contElement)
 
     const myMap = new ymaps.Map(contElement, {
-        behaviors: ['drag'],
+        behaviors: ['drag', 'scrollZoom'],
+        controls: [],
         bounds: BOUNDS,
         zoom: 7
+    });
+
+    myMap.events.add('click', function (e) {
+        let coord = e.get('coords');
+        setUser(myMap, coord, placemarkUser)
+        let radius = getRadius()
+        setCircle(myMap, coord, radius)
     });
 
     return myMap
@@ -56,7 +99,6 @@ function mapInit(contElement) {
 
 function searchInit(inputElement, map) {
     if ( typeof inputElement !== "object" ) return false
-    console.log(typeof inputElement)
 
     var suggestView = new ymaps.SuggestView(inputElement, {
         boundedBy: BOUNDS,
@@ -65,55 +107,90 @@ function searchInit(inputElement, map) {
         let item = e.get('item')
         if ( !item ) return false
         let address = item.value
-        console.log(address)
         reverseGeocoding(address)
         .then((coord)=>{
-            console.log(coord)
-            addPlacemarks(map, [coord])
+            setUser(map, coord, placemarkUser)
+            let radius = getRadius()
+            setCircle(map, coord, radius)
         })        
     })
 }
 
-function addPlacemarks(map, coords) {
+function getRadius(min=1, max=10) {
+    let radiusRaw = parseInt(SearchRadius.value)
+    if (radiusRaw < min) radiusRaw = min
+    if (radiusRaw > max) radiusRaw = max
+    return radiusRaw * 1000    
+}
 
-    let myGeoObjects = []
-    let myPlacemarks = []
+function setCircle(map, coord, radius) {
 
-    let count = 1
-    for (let i of coords) {
-        let geoObject = new ymaps.GeoObject({
-            geometry: {
-                type: "Point",
-                coordinates: i
-            }
-        });
-        myGeoObjects.push(geoObject)
+    if (!STORE.circle) {
+        if ( !coord || !radius ) return false
 
-        let name = 'name'+count
-        let price = 'price'+count
-        let placemark = new ymaps.Placemark(i, {
-            hintContent: 'hint-'+count,
-            balloonContent:
-                `
-                <a class="item-map" href="google.com">
-                    <div class="item-map__img-cont">
-                        <img class="item-map__img" src="/assats/img/no-image.svg"
-                    </div>
-                    <p class="item-map__name">${name}</p>
-                    <p class="item-map__price">${price}</p>
-                </a>
-                `,
-            // balloonContent: 'ballon-'+count
+        STORE.circle = new ymaps.Circle([
+            coord,
+            // Радиус круга в метрах.
+            radius
+        ], null,
+        {
+            zIndexHover: false,
+            cursor: 'grab',
         })
-        myPlacemarks.push(placemark)
+        map.geoObjects.add(STORE.circle);
+    } else {
+        if (coord) STORE.circle.geometry.setCoordinates(coord)
+        if (radius) STORE.circle.geometry.setRadius(radius)
+    }
+    let inBounds = getItemsInbounds( STORE.objects, STORE.circle.geometry.getBounds() )
+    hidePlacemarks(map, [STORE.user, STORE.circle])
+    showPlacemarksInCircle(STORE.circle, inBounds)
+}
 
-        count++
+function setUser(map, coord, placemarkType=null) {
+
+    if (!STORE.user) {
+        let properties  = (placemarkType) ? placemarkType.properties : {}
+        let options     = (placemarkType) ? placemarkType.options : {}
+
+        STORE.user = new ymaps.Placemark(coord, properties, options)
+
+        STORE.user.events.add('dragstart', (e) => {
+            STORE.circle.options.set('visible', false)
+        })
+        STORE.user.events.add('dragend', (e) => {
+            let coord = e.get('target').geometry.getCoordinates()
+            setCircle(map, coord, getRadius())            
+            STORE.circle.options.set('visible', true)
+        })
+
+        map.geoObjects.add(STORE.user);
+    } else {
+        STORE.user.geometry.setCoordinates(coord)
+    }
+}
+
+function addPlacemarks(map, coords, placemarkType=null, clusterer=false) {
+
+    let objects = []
+    for (let coord of coords) {
+        let properties  = (placemarkType) ? placemarkType.properties : {}
+        let options     = (placemarkType) ? placemarkType.options : {}
+
+        let placemark = new ymaps.Placemark(coord, properties, options)
+        objects.push(placemark)
+        if (!clusterer) {
+            map.geoObjects.add(placemark);
+        }
     }
 
-    let myCluster = new ymaps.Clusterer();
-    // myCluster.add(myGeoObjects);
-    myCluster.add(myPlacemarks);
-    map.geoObjects.add(myCluster);
+    if (clusterer) {
+        let myCluster = new ymaps.Clusterer();
+        myCluster.add(objects);
+        map.geoObjects.add(myCluster);        
+    }
+
+    return objects
 }
 
 function directGeocoding(coord) {
@@ -130,19 +207,41 @@ function reverseGeocoding(address) {
         })
 }
 
-function filterSelect() {
-    let filters = document.querySelectorAll('[data-element="filter"]')
-    filters = Array.from(filters)
-    filters.forEach( (item) => {
-        item.classList.add(CLASSNAME_HIDDEN)
+function hidePlacemarks(map, blackList=[]) {
+    map.geoObjects.each((item)=>{
+        
+        if ( !blackList.includes(item) ) {
+            item.options.set('visible', false)
+        } else {
+
+        }
     })
+}
 
-    let visibleFilterName = FilterSelect.value
-    let visibleFilter = filters.filter( (item)=> item.id === visibleFilterName )
+function showPlacemarksInCircle(circle, items) {
     
-    if ( !visibleFilter.length ) return false
+    for ( let item of items ) {
+        coord = item.geometry.getCoordinates()
+        if ( circle.geometry.contains(coord) ) {
+            item.options.set('visible', true)
+        }
+    }
+}
 
-    visibleFilter.forEach( item=>item.classList.remove(CLASSNAME_HIDDEN) )
+function getItemsInbounds(items, bounds) {
+    // [ [Longitude[0], Latitude[0]], [Longitude[1], Latitude[1]] ]
+    let inBounds = []
+    for (let item of items) {
+        coord = item.geometry.getCoordinates()
+        if (
+            (coord[0] >= bounds[0][0] && coord[0] <= bounds[1][0]) &&
+            (coord[1] >= bounds[0][1] && coord[1] <= bounds[1][1])
+        ) {
+            inBounds.push(item)
+        }
+    }
+
+    return inBounds
 }
 
 function getRandomCoordinate(count = 1, bounds = []) {
