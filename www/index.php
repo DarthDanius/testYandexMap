@@ -47,6 +47,7 @@
             <input type="text" class="search-map__search" data-element="search-field" placeholder="Поиск по карте">
             <!-- <button data-element="search-btn">Найти</button> -->
             <input type="number" min="1" max="10" placeholder="Радиус поиска" data-element="search-radius" value='10' />
+            <button data-element="center-btn">Отцентрировать</button>
         </div>
         
         <div class="search-map__map" data-element="map" width="100%" height="600">

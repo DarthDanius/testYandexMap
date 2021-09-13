@@ -11,6 +11,7 @@ const STORE = {
 let MapCont            = null
 let SearchField        = null
 let SearchRadius       = null
+let CenterBtn          = null
 
 let placemarkObject = {
     properties: {
@@ -57,6 +58,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     MapCont            = document.querySelector('[data-element="map"]')
     SearchField        = document.querySelector('[data-element="search-field"]')
     SearchRadius       = document.querySelector('[data-element="search-radius"]')
+    CenterBtn          = document.querySelector('[data-element="center-btn"]')
 
     // получаем список координат из базы
     STORE.coords = getRandomCoordinate(50, BOUNDS)
@@ -72,6 +74,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
         SearchRadius.addEventListener('change', function(e) {
             let radius = getRadius()        
             setCircle(Map, null, radius)
+        })
+        CenterBtn.addEventListener('click', function(e) {    
+            let {center, zoom} = ymaps.util.bounds.getCenterAndZoom( BOUNDS, [MapCont.clientWidth, MapCont.clientHeight] )
+            Map.setCenter(center, zoom)
         })
     });
 
